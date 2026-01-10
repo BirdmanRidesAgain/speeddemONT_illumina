@@ -13,11 +13,16 @@ from src import classes
 
 
 def main():
-    ### DEFINE AND CHECK ARGS
+    ### DEFINE PROGRAM ARGS
     default_prefix=Path(__file__).name.split(sep='.')[0]
     default_fuzzy_aln_percent=0.9
     default_buffer=0
+    ### COLORS!
+    BRIGHT_CYAN = '\033[96m'
+    RED = '\033[91m'
+    RESET = '\033[0m' # called to return to standard terminal text color
 
+    ### PARSE USER ARGS
     parser = ArgumentParser(description="Takes a set of ONT (or illumina) ddRAD reads and a set of barcodes and demultiplexes them.")
     parser.add_argument('-r1', '--read1', help='Path to a fastq file. If -r2 unset, interpreted as a single ONT readfile. Interpreted as READ1 of paired illumina read files otherwise. Required.', type=str, required=True)
     parser.add_argument('-r2', '--read2', help='Path to READ2 of paired illumina read files. Should only be set if processing illumina reads..', type=str)
@@ -28,16 +33,21 @@ def main():
     parser.add_argument('-fa', '--fuzzy_aln_percent', help='The minimum percent identity needed to fuzzy-match a full index to a sequence. Not compatible with -rt=illumina.', default=default_fuzzy_aln_percent, type=float)
     parser.add_argument('-ns', '--num_short_mismatch', help='The number of mismatches allowed in an illumina barcode region. Defaults to 0, allowed options are [0,1,2].', default=0, type=int, choices=[0,1,2])
     parser.add_argument('-mc', '--max_comparisons', help='The maximum number of \'valid\' alignments the program can make in \'fuzzy\' alignments before picking the best match. Defaults to an arbitrarily high number otherwise. Lowering the value increases speed, but may produce misclassifications.', type=int)
+    parser.add_argument('-na', '--no_adapters', help='A flag which, if set, attempts to demux data based only on short illumina barcode sequences. If set, `index_full`, `index`, and `barcode_full` can be blank in demux file. Not compatible with ONT data. Safest to leave unset.', action='store_false')
     args = parser.parse_args()
 
-    ### COLORS!
-    BRIGHT_CYAN = '\033[96m'
-    RED = '\033[91m'
-    RESET = '\033[0m' # called to return to standard terminal text color
+    ## if the user set args.max_comparisons, use their value, otherwise, set to 1 if 'exact', and an arbitrarily high number otherwise.
+    # We set it like this because we can't easily extract the number of barcodes from the data file beforehand
+    if (args.max_comparisons is None):
+        if (args.fuzzy_aln_percent == float(1)):
+            args.max_comparisons = 1
+        else:
+            args.max_comparisons = 80085 # this is far more than the number of barcodes in any realistic demux scenario
 
+    ### CHECK INPUTS
+    ## ERROR CHECKS
 
-    ### Check inputs
-    # Ensure that our alignment percent arguments are a value between 0 and 1
+    # Ensure that our alignment percent arguments are a value between 0 and 1. Argparse doesn't have good methods for checking ranges
     if not (min(0, 1) < args.fuzzy_aln_percent <= max(0, 1)):
         error_message=f'''
         {RED}ERROR:{RESET} Alignment arguments (--fuzzy_aln_percent) must be percentages: eg, -fa .9
@@ -45,30 +55,35 @@ def main():
         '''
         raise ValueError(error_message)
 
-    ## if the user set args.max_comparisons, use their value
-    # otherwise, set to 1 if 'exact', and an arbitrarily high number otherwise
-    if (args.max_comparisons is None):
-        if (args.fuzzy_aln_percent == float(1)):
-            args.max_comparisons = 1
-        else:
-            args.max_comparisons = 80085 # this is far more than the number of barcodes in any realistic demux scenario
+    # Ensure that --process_index is True if this is ONT. You *must* have indices to run ONT demuxxing; it won't work otherwise
+    if (not args.read2):
+        if (args.no_adapters == False):
+            error_message=f'''
+            {RED}ERROR:{RESET} args.no_adapters must be True if you are demuxxing ONT data.
+            Check your input data or remove the -na flag.
+            '''
+            raise ValueError(error_message)    
 
-    # Warn the user if they've set inappropriate/inapplicable params for an Illumina run
-    # buffer and fuzzy alignment percent don't do anything
-    if (args.read2):
-        warning_template = """
+
+    ## WARNINGS
+    # Warn the user if they've set inapplicable params
+    # Most of these are for an illumina run - the params don't *hurt*, but they are useless.
+    warning_template = """
     {RED}WARNING:{RESET} --{name} set by user to non-default value
     \tDefault: --{name}={default}
     \tCurrent: --{name}={current}
-    --{name} does not operate on illumina data.
+    --{name} does not operate on {read_type} data.
     {RED}This does not affect your results{RESET}, but the argument is useless.
     It is recommended that you remove it.
     """
-        warnings = []
+    warnings = []
+
+    if (args.read2): # illumina use-case warnings
+        read_type='illumina'
         if (args.fuzzy_aln_percent != default_fuzzy_aln_percent):
             warnings.append(
                 warning_template.format(
-                    name='fuzzy_aln_percent', default=default_fuzzy_aln_percent, current=args.fuzzy_aln_percent, RED=RED,RESET=RESET
+                    read_type=read_type, name='fuzzy_aln_percent', default=default_fuzzy_aln_percent, current=args.fuzzy_aln_percent, RED=RED,RESET=RESET
                 )
             )
         if (args.buffer != default_buffer):
@@ -77,8 +92,8 @@ def main():
                     name='buffer', default=default_buffer, current=args.buffer, RED=RED,RESET=RESET
                 )
             )
-        if warnings:
-            warn("".join(warnings))
+    if warnings:
+        warn("".join(warnings))
 
 
     ### ONCE ALL ARGS ARE VALID, PRINT USER INFO AND CALL A WORKER SCRIPT

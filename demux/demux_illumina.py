@@ -24,7 +24,13 @@ def main() -> int:
     utils.print_user_info(f'Reading in {read_type} sequences:')
     SimpleSeqRecord_lst1 = utils.parse_seqfile(args.read1) # uses FastqGeneralIterator to read big FAs cheaply
     SimpleSeqRecord_lst2 = utils.parse_seqfile(args.read2)
+    
+    # should this be a different format???
     print(len(SimpleSeqRecord_lst1))
+    print(len(SimpleSeqRecord_lst2))
+
+    # check to see if the user's demux groups all have the same index values.
+    # if they do have the same, print a warning, but don't override
 
     return 0
 

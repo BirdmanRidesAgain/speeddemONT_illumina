@@ -10,12 +10,12 @@ import gzip
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
 from mimetypes import guess_type
 from functools import partial
+import pandas as pd
 #import seaborn as sns
 #import matplotlib.pyplot as plt
 #import random
 #from tqdm import tqdm
 #from collections import defaultdict
-#import pandas as pd
 
 from src import classes
 
@@ -66,43 +66,43 @@ def parse_seqfile(filepath: str):
         for id, seq, qual in FastqGeneralIterator(f):
             seqfile_lst.append(classes.SimpleSeqRecord(id, seq, qual))
     return seqfile_lst
-#
-#def parse_demux_file(filepath: str):
-#    '''
-#    Takes in a 5-column TSV file expected to contain a header and checks that columns 2-5 contain only valid DNA nucleotides (A, T, C, G).
-#    
-#    A minimal example looks like this:
-#    sample_id	index_full	index	barcode_full	barcode
-#    R10N00251	CAA...AATT	CGTGAT	AAT...GCA	ACACCT
-#    R20N00088	CAA...ATTT	CGTGAT	AAT...GCA	ACAGCA
-#
-#    Raises a ValueError if either the barcode or index are not 6 or 9 nucleotides long.
-#    Returns a data frame.
-#    '''
-#    df = pd.read_csv(filepath, sep='\t', header='infer')
-#    header=['sample_id','index_full','index','barcode_full','barcode']
-#
-#    if list(df.columns) != header:
-#        raise ValueError(
-#            "Invalid demux header. "
-#            f"Expected columns: {header}. "
-#            f"Found: {list(df.columns)}"
-#        )
-#    
-#    if df.shape[1] != 5:
-#        raise ValueError(f"Expected 5 columns, found {df.shape[1]}")
-#    
-#    # Check columns 3 and 5 (index 2 and 4) for string length 6 or 9
-#    for col in [df.columns[2], df.columns[4]]:
-#        invalid_rows = df[~df[col].apply(lambda x: isinstance(x, str) and len(x) in (6, 9))]
-#        if not invalid_rows.empty:
-#            raise ValueError(
-#            f"Barcodes and indices '{col}' must be 6 or 9 nucleotides long. "
-#            f"Invalid rows:\n{invalid_rows[[col]].to_string(index=True)}"
-#            )
-#    return df
-#
-#def convert_demux_df_to_SampleID_dict(df: pd.DataFrame, fuzzy_aln_percent: float, exact_aln_percent: float, buffer: int):
+
+def parse_demux_file(filepath: str):
+    '''
+    Takes in a 5-column TSV file expected to contain a header and checks that columns 2-5 contain only valid DNA nucleotides (A, T, C, G).
+    
+    A minimal example looks like this:
+    sample_id	index_full	index	barcode_full	barcode
+    R10N00251	CAA...AATT	CGTGAT	AAT...GCA	ACACCT
+    R20N00088	CAA...ATTT	CGTGAT	AAT...GCA	ACAGCA
+
+    Raises a ValueError if either the barcode or index are not 6 or 9 nucleotides long.
+    Returns a data frame.
+    '''
+    df = pd.read_csv(filepath, sep='\t', header='infer')
+    header=['sample_id','index_full','index','barcode_full','barcode']
+
+    if list(df.columns) != header:
+        raise ValueError(
+            "Invalid demux header. "
+            f"Expected columns: {header}. "
+            f"Found: {list(df.columns)}"
+        )
+    
+    if df.shape[1] != 5:
+        raise ValueError(f"Expected 5 columns, found {df.shape[1]}")
+    
+    # Check columns 3 and 5 (index 2 and 4) for string length 6 or 9
+    for col in [df.columns[2], df.columns[4]]:
+        invalid_rows = df[~df[col].apply(lambda x: isinstance(x, str) and len(x) in (6, 9))]
+        if not invalid_rows.empty:
+            raise ValueError(
+            f"Barcodes and indices '{col}' must be 6 or 9 nucleotides long. "
+            f"Invalid rows:\n{invalid_rows[[col]].to_string(index=True)}"
+            )
+    return df
+
+#def convert_demux_df_to_SampleID_dict(df: pd.DataFrame, fuzzy_aln_percent: float, num_short_mismatch: float, buffer: int):
 #    '''
 #    Ingests a data frame and converts it to a dictionary object organized by sample_id.
 #    The values are a list of DCs, allowing multiple DCs per sample_id.
@@ -115,23 +115,23 @@ def parse_seqfile(filepath: str):
 #        demuxxed_seq_ids = []
 #        for _, row in group_df.iterrows():
 #            index_full_CE = ConstructElement(row['index_full'], 'long', fuzzy_aln_percent, buffer)
-#            index_CE = ConstructElement(row['index'], 'short', exact_aln_percent)
+#            index_CE = ConstructElement(row['index'], 'short', num_short_mismatch)
 #            barcode_full_CE = ConstructElement(row['barcode_full'], 'long', fuzzy_aln_percent, buffer)
-#            barcode_CE = ConstructElement(row['barcode'], 'short', exact_aln_percent)
+#            barcode_CE = ConstructElement(row['barcode'], 'short', num_short_mismatch)
 #            DC = DemuxConstruct(sample_id, index_full_CE, index_CE, barcode_full_CE, barcode_CE)
 #            DCs_in_SampleID_lst.append(DC) 
 #        # initialize the seqs demuxxed as an empty list
 #        sample_id_dict[row['sample_id']] = [DCs_in_SampleID_lst, demuxxed_seq_ids]
 #    return sample_id_dict
 #
-#def make_SampleID_dict(filepath: str, fuzzy_aln_percent: float, exact_aln_percent: float, buffer: int):
-#    '''
-#    Wraps around `parse_demux_file` and `convert_demux_df_to_DemuxConstruct_lst1
-#    '''
-#    demux_df = parse_demux_file(filepath)
-#    SampleID_dict = convert_demux_df_to_SampleID_dict(demux_df, fuzzy_aln_percent, exact_aln_percent, buffer)
-#    return SampleID_dict
-#
+def make_SampleID_dict(filepath: str, fuzzy_aln_percent: float, num_short_mismatch: float, buffer: int):
+    '''
+    Wraps around `parse_demux_file` and `convert_demux_df_to_DemuxConstruct_lst1
+    '''
+    demux_df = parse_demux_file(filepath)
+    SampleID_dict = convert_demux_df_to_SampleID_dict(demux_df, fuzzy_aln_percent, num_short_mismatch, buffer)
+    return SampleID_dict
+
 #def chunk_input_lst(lst: list, n_rds: int = 10000):
 #    '''
 #    Splits the incoming input_lst into groups of n iterations.

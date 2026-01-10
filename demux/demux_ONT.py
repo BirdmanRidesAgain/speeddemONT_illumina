@@ -27,6 +27,9 @@ def main() -> int:
     SimpleSeqRecord_lst = utils.parse_seqfile(args.read1) # uses FastqGeneralIterator to read big FAs cheaply
     print(len(SimpleSeqRecord_lst))
 
+    #SampleID_dict = utils.make_SampleID_dict(args.demux, args.fuzzy_aln_percent, args.num_short_mismatch, args.buffer)
+    #print(SampleID_dict)
+
 
     return 0
 
