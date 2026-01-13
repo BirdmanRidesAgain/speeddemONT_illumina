@@ -5,7 +5,7 @@ import sys
 sys.path.append('../speeddemONT_illumina') # FIXME - brittle hardcoded link to the directory above to resolve `src`. Fix it later
 import argparse
 from src import utils
-from src import classes
+from src import DemuxClasses as dc
 
 
 def main() -> int:
@@ -18,6 +18,8 @@ def main() -> int:
     parser.add_argument('-t', '--threads', type=int, required=True)    
     parser.add_argument('-p', '--prefix', type=str, required=True)
     parser.add_argument('-ns', '--num_short_mismatch', type=int, required=True)
+    parser.add_argument('-na', '--no_adapters', type=bool, required=True)
+
     args = parser.parse_args()
 
     #### READ IN FILES
@@ -26,13 +28,18 @@ def main() -> int:
     SimpleSeqRecord_lst2 = utils.parse_seqfile(args.read2)
     
     # should this be a different format???
-    print(len(SimpleSeqRecord_lst1))
-    print(len(SimpleSeqRecord_lst2))
+    print(f'{len(SimpleSeqRecord_lst1)} reads in READ1')
+    print(f'{len(SimpleSeqRecord_lst2)} reads in READ2')
+
+
+    error_code_not_implemented=100
+    print("Congratulations! You have tried to demux Illumina data. The programmer hasn't finished implementing this yet.")
+    print(f"We\'re going to return with error code {error_code_not_implemented} now.")
 
     # check to see if the user's demux groups all have the same index values.
     # if they do have the same, print a warning, but don't override
 
-    return 0
+    return error_code_not_implemented
 
 if __name__ == "__main__":
     sys.exit(main())
