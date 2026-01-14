@@ -279,7 +279,7 @@ def split_DCA_lst(SampleID_dict: dict, DCA_lst: list):
     Returns a 'valid' and a 'invalid' dict.
     Which is weird, but...
     '''
-    SampleID_dict['NA'] = [[], []] # We add this key in to account for failed sequences.
+    SampleID_dict['not_assigned'] = [[], []] # We add this key in to account for failed sequences.
     invalid_dict = {} # empty dict; will contain all seqid of failed reads, plus their filter values. we want to know why they failed
     
     for DCA in tqdm(DCA_lst):
@@ -287,7 +287,7 @@ def split_DCA_lst(SampleID_dict: dict, DCA_lst: list):
             SampleID_dict[DCA.DemuxConstruct.SampleID][1].append(DCA.SimpleSeqRecord)
         else:
             # this records all the info we have for the failed seqs.
-            SampleID_dict['NA'][1].append(DCA.SimpleSeqRecord)
+            SampleID_dict['not_assigned'][1].append(DCA.SimpleSeqRecord)
             invalid_dict[DCA.SimpleSeqRecord.id] = DCA.valid_dict # this is a separate dict b/c it corresponds to plot 2, which has a different schema
 
     return [SampleID_dict, invalid_dict]
@@ -303,7 +303,9 @@ def make_df_from_SampleID_dict(SampleID_dict: dict):
             'count': len(seq_list),
             'num DemuxConstructs': len(dc_list)
         })
-    return(pd.DataFrame(data))
+    df = pd.DataFrame(data)
+    print(df)
+    return(df)
 
 def print_demultiplexing_summary(df: pd.DataFrame):
     '''
@@ -311,7 +313,7 @@ def print_demultiplexing_summary(df: pd.DataFrame):
     
     Takes a DataFrame with columns 'sample_id' and 'count' (as returned by 
     plot_number_of_SimpleSeqRecords_per_sample_id) and prints:
-    - Number of successfully categorized samples (sample_id != 'NA')
+    - Number of successfully categorized samples (sample_id != 'not_assigned')
     - Number of successfully categorized reads
     - Total number of reads processed
     
@@ -321,7 +323,7 @@ def print_demultiplexing_summary(df: pd.DataFrame):
     ----------
     df : pd.DataFrame
         DataFrame containing demultiplexing results with columns:
-        - 'sample_id': str, sample identifiers (may include 'NA' for uncategorized reads)
+        - 'sample_id': str, sample identifiers (may include 'not_assigned' for uncategorized reads)
         - 'count': int, number of reads per sample_id
     
     Returns
@@ -329,15 +331,10 @@ def print_demultiplexing_summary(df: pd.DataFrame):
     None
         Prints summary statistics to stdout.
     
-    Examples
-    --------
-    >>> plot1, df1 = plot_number_of_SimpleSeqRecords_per_sample_id(sample_id_dict)
-    >>> print_demultiplexing_summary(df1)
-
     '''
     total_rds = df['count'].sum()
-    binned_rds = df[df['sample_id'] != 'NA']['count'].sum()
-    num_samples = len(df[df['sample_id'] != 'NA'])
+    binned_rds = df[df['sample_id'] != 'not_assigned']['count'].sum()
+    num_samples = len(df[df['sample_id'] != 'not_assigned'])
     
     # Print summary statistics
     print(f"{binned_rds:,}/{total_rds:,} ({100 * binned_rds / total_rds:.2f}%) in {num_samples} sample IDs successfully demuxxed")
@@ -349,7 +346,7 @@ def plot_number_of_SimpleSeqRecords_per_SampleID(df: pd.DataFrame):
     Plots the dataframe from sample_id_dict using seaborn.
     '''
     fig = plt.figure(figsize=(14,8), layout='constrained')
-    ax = sns.barplot(data=df,y='sample_id', x='count', hue='num DemuxConstructs')
+    ax = sns.barplot(data=df, y='sample_id', x='count', hue='num DemuxConstructs')
     for container in ax.containers:
         ax.bar_label(container, fmt='%d', padding=3, fontsize=12)
     ax.grid(True, axis='x', linestyle='--', alpha=0.5)
@@ -363,57 +360,57 @@ def plot_number_of_SimpleSeqRecords_per_SampleID(df: pd.DataFrame):
     fig.add_axes(ax)
     return fig
 
-#def plot_reasons_for_SimpleSeqRecord_invalidity(invalid_dict: dict):
-#    '''
-#    Takes in the invalid_dict to plot where SimpleSeqRecords are primarily lost and record sumstats.
-#    Counts the number of sequences that failed at each filter step.
-#    '''
-#    # Initialize counters for each filter step
-#    num_reads=len(invalid_dict)
-#    filter_counts = {
-#        'all_CEAs_valid': 0,
-#        'no_long_CEA_concatamers_valid': 0,
-#        'CEAs_in_CEAP_same_orientation': 0,
-#        'CEAs_short_inside_CEAs_long': 0,
-#        'CEAPs_opposite_orientation': 0,
-#    }
-#    
-#    # Count failures at each filter step
-#    for seq_id, valid_dict in invalid_dict.items():
-#        for filter_step, is_valid in valid_dict.items():
-#            if filter_step in filter_counts and not is_valid:
-#                filter_counts[filter_step] += 1
-#    
-#    # Convert to DataFrame for plotting
-#    data = []
-#    data.append({'filter_step': 'total num failed reads', 'count': num_reads})
-#    for filter_step, count in filter_counts.items():
-#        data.append({
-#            'filter_step': filter_step,
-#            'count': (num_reads - count)
-#        })
-#    df = pd.DataFrame(data)
-#    
-#    fig = plt.figure(figsize=(14,8), layout='constrained')
-#    ax = sns.barplot(
-#        data=df,
-#        x='filter_step', y='count'
-#    )
-#    for container in ax.containers:
-#        ax.bar_label(container, fmt='%d', padding=3, fontsize=12)
-#    ax.grid(True, axis='y', linestyle='--', alpha=0.5)
-#
-#    # add labels
-#    label_font = {'fontsize':14,'fontweight':'bold'}
-#    ax.set_xlabel('Filter step',fontdict=label_font)
-#    ax.set_ylabel('Number of reads lost',fontdict=label_font)
-#    ax.tick_params(axis='x', labelrotation=45)
-#    ax.set_title(
-#        'Number of SimpleSeqRecords after each filter',
-#        loc='left',
-#        fontsize=16,
-#        fontweight='bold',
-#    )
-#
-#    fig.add_axes(ax)
-#    return [fig, df]
+def plot_reasons_for_SimpleSeqRecord_invalidity(invalid_dict: dict):
+    '''
+    Takes in the invalid_dict to plot where SimpleSeqRecords are primarily lost and record sumstats.
+    Counts the number of sequences that failed at each filter step.
+    '''
+    # Initialize counters for each filter step
+    num_reads=len(invalid_dict)
+    filter_counts = {
+        'all_CEAs_valid': 0,
+        'no_long_CEA_concatamers_valid': 0,
+        'CEAs_in_CEAP_same_orientation': 0,
+        'CEAs_short_inside_CEAs_long': 0,
+        'CEAPs_opposite_orientation': 0,
+    }
+    
+    # Count failures at each filter step
+    for seq_id, valid_dict in invalid_dict.items():
+        for filter_step, is_valid in valid_dict.items():
+            if filter_step in filter_counts and not is_valid:
+                filter_counts[filter_step] += 1
+    
+    # Convert to DataFrame for plotting
+    data = []
+    data.append({'filter_step': 'total num failed reads', 'count': num_reads})
+    for filter_step, count in filter_counts.items():
+        data.append({
+            'filter_step': filter_step,
+            'count': (num_reads - count)
+        })
+    df = pd.DataFrame(data)
+    
+    fig = plt.figure(figsize=(14,8), layout='constrained')
+    ax = sns.barplot(
+        data=df,
+        x='filter_step', y='count'
+    )
+    for container in ax.containers:
+        ax.bar_label(container, fmt='%d', padding=3, fontsize=12)
+    ax.grid(True, axis='y', linestyle='--', alpha=0.5)
+
+    # add labels
+    label_font = {'fontsize':14,'fontweight':'bold'}
+    ax.set_xlabel('Filter step',fontdict=label_font)
+    ax.set_ylabel('Number of reads lost',fontdict=label_font)
+    ax.tick_params(axis='x', labelrotation=45)
+    ax.set_title(
+        'Number of SimpleSeqRecords after each filter',
+        loc='left',
+        fontsize=16,
+        fontweight='bold',
+    )
+
+    fig.add_axes(ax)
+    return [fig, df]
