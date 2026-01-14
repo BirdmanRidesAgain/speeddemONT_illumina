@@ -292,9 +292,9 @@ def split_DCA_lst(SampleID_dict: dict, DCA_lst: list):
 
     return [SampleID_dict, invalid_dict]
 
-def plot_number_of_SimpleSeqRecords_per_SampleID(SampleID_dict: dict):
+def make_df_from_SampleID_dict(SampleID_dict: dict):
     '''
-    Plots the dataframe from sample_id_dict using seaborn.
+    Converts the SampleID_dict into a data frame for plotting+printing.
     '''
     data = []
     for SampleID, (dc_list, seq_list) in SampleID_dict.items():
@@ -303,12 +303,53 @@ def plot_number_of_SimpleSeqRecords_per_SampleID(SampleID_dict: dict):
             'count': len(seq_list),
             'num DemuxConstructs': len(dc_list)
         })
-    df = pd.DataFrame(data)
+    return(pd.DataFrame(data))
+
+def print_demultiplexing_summary(df: pd.DataFrame):
+    '''
+    Calculates and prints summary statistics for demultiplexing results.
+    
+    Takes a DataFrame with columns 'sample_id' and 'count' (as returned by 
+    plot_number_of_SimpleSeqRecords_per_sample_id) and prints:
+    - Number of successfully categorized samples (sample_id != 'NA')
+    - Number of successfully categorized reads
+    - Total number of reads processed
+    
+    All values are reported as both absolute numbers and percentages.
+    
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame containing demultiplexing results with columns:
+        - 'sample_id': str, sample identifiers (may include 'NA' for uncategorized reads)
+        - 'count': int, number of reads per sample_id
+    
+    Returns
+    -------
+    None
+        Prints summary statistics to stdout.
+    
+    Examples
+    --------
+    >>> plot1, df1 = plot_number_of_SimpleSeqRecords_per_sample_id(sample_id_dict)
+    >>> print_demultiplexing_summary(df1)
+
+    '''
+    total_rds = df['count'].sum()
+    binned_rds = df[df['sample_id'] != 'NA']['count'].sum()
+    num_samples = len(df[df['sample_id'] != 'NA'])
+    
+    # Print summary statistics
+    print(f"{binned_rds:,}/{total_rds:,} ({100 * binned_rds / total_rds:.2f}%) in {num_samples} sample IDs successfully demuxxed")
+    print('\n')
+    print(df.to_string(index=False))
+
+def plot_number_of_SimpleSeqRecords_per_SampleID(df: pd.DataFrame):
+    '''
+    Plots the dataframe from sample_id_dict using seaborn.
+    '''
     fig = plt.figure(figsize=(14,8), layout='constrained')
-    ax = sns.barplot(
-        data=df,
-        y='sample_id', x='count', hue='num DemuxConstructs'
-    )
+    ax = sns.barplot(data=df,y='sample_id', x='count', hue='num DemuxConstructs')
     for container in ax.containers:
         ax.bar_label(container, fmt='%d', padding=3, fontsize=12)
     ax.grid(True, axis='x', linestyle='--', alpha=0.5)
@@ -318,14 +359,9 @@ def plot_number_of_SimpleSeqRecords_per_SampleID(SampleID_dict: dict):
     ax.set_xlabel('Number of reads',fontdict=label_font)
     ax.set_ylabel('Sample IDs (bins)',fontdict=label_font)
     ax.tick_params(axis='y', labelrotation=0)
-    ax.set_title(
-        'Successfully demultiplexed reads per sample',
-        loc='left',
-        fontsize=16,
-        fontweight='bold',
-    )
+    ax.set_title('Successfully demultiplexed reads per sample',loc='left',fontsize=16,fontweight='bold',)
     fig.add_axes(ax)
-    return [fig, df]
+    return fig
 
 #def plot_reasons_for_SimpleSeqRecord_invalidity(invalid_dict: dict):
 #    '''
@@ -381,43 +417,3 @@ def plot_number_of_SimpleSeqRecords_per_SampleID(SampleID_dict: dict):
 #
 #    fig.add_axes(ax)
 #    return [fig, df]
-#
-def print_demultiplexing_summary(df: pd.DataFrame):
-    '''
-    Calculates and prints summary statistics for demultiplexing results.
-    
-    Takes a DataFrame with columns 'sample_id' and 'count' (as returned by 
-    plot_number_of_SimpleSeqRecords_per_sample_id) and prints:
-    - Number of successfully categorized samples (sample_id != 'NA')
-    - Number of successfully categorized reads
-    - Total number of reads processed
-    
-    All values are reported as both absolute numbers and percentages.
-    
-    Parameters
-    ----------
-    df : pd.DataFrame
-        DataFrame containing demultiplexing results with columns:
-        - 'sample_id': str, sample identifiers (may include 'NA' for uncategorized reads)
-        - 'count': int, number of reads per sample_id
-    
-    Returns
-    -------
-    None
-        Prints summary statistics to stdout.
-    
-    Examples
-    --------
-    >>> plot1, df1 = plot_number_of_SimpleSeqRecords_per_sample_id(sample_id_dict)
-    >>> print_demultiplexing_summary(df1)
-
-    '''
-    total_rds = df['count'].sum()
-    binned_rds = df[df['sample_id'] != 'NA']['count'].sum()
-    num_samples = len(df[df['sample_id'] != 'NA'])
-    
-    # Print summary statistics
-    print(f"{binned_rds:,}/{total_rds:,} ({100 * binned_rds / total_rds:.2f}%) in {num_samples} sample IDs successfully demuxxed")
-    print('\n')
-    print(df.to_string(index=False))
-

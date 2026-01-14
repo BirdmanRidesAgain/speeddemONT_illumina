@@ -79,11 +79,12 @@ def main() -> int:
     pool.join()    
 
     # Plot results and print percent
-    utils.print_user_info(f'\nWriting summary statistics:')
-    plot1, df1 = utils.plot_number_of_SimpleSeqRecords_per_SampleID(SampleID_dict)
-    plot1.savefig(f'{args.prefix}/{args.prefix}_demult_success.png', dpi=300)
-    df1.to_csv(f'{args.prefix}/{args.prefix}_seqs_per_SampleID_stats.tsv', sep = "\t", index=False)
-    utils.print_demultiplexing_summary(df1)
+    utils.print_user_info(f'\nWriting summary statistics to {utils.BRIGHT_CYAN}{args.prefix}{utils.RESET}:')
+    df_success = utils.make_df_from_SampleID_dict(SampleID_dict)
+    plot_success = utils.plot_number_of_SimpleSeqRecords_per_SampleID(df_success)
+    plot_success.savefig(f'{args.prefix}/{args.prefix}_demult_success.png', dpi=300)
+    df_success.to_csv(f'{args.prefix}/{args.prefix}_seqs_per_SampleID_stats.tsv', sep = "\t", index=False)
+    utils.print_demultiplexing_summary(df_success)
 
     #plot2, df2 = plot_reasons_for_SimpleSeqRecord_invalidity(invalid_dict)
     #plot2.savefig(f'{args.prefix}/{args.prefix}_demult_failure.png', dpi=300)
